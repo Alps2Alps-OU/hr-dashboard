@@ -2,8 +2,9 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci
 COPY prisma ./prisma/
+ENV DATABASE_URL="file:/tmp/dummy.db"
 RUN npx prisma generate
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
@@ -39,15 +40,9 @@ COPY --from=builder /app/prisma ./prisma
 RUN mkdir -p /data && chown nextjs:nodejs /data
 VOLUME /data
 
-# Entrypoint: run migrations then start
-COPY <<'EOF' /app/entrypoint.sh
-#!/bin/sh
-set -e
-export DATABASE_URL="file:/data/hr-buddy.db"
-npx prisma migrate deploy --schema ./prisma/schema.prisma
-exec node server.js
-EOF
-RUN chmod +x /app/entrypoint.sh
+# Entrypoint script: run migrations then start
+RUN printf '#!/bin/sh\nset -e\nexport DATABASE_URL="file:/data/hr-buddy.db"\nnpx prisma migrate deploy --schema ./prisma/schema.prisma\nexec node server.js\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
