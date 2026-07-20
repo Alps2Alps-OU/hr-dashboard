@@ -1,29 +1,32 @@
 # ── Stage 1: Install dependencies ──────────────────────────────────
-FROM node:18-alpine AS deps
+FROM node:18-slim AS deps
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 ENV DATABASE_URL="file:/tmp/dummy.db"
-RUN npm ci
+RUN npm install
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Remove local dev artifacts
 RUN rm -rf .next .env.local .env dev-output.log "Start Dashboard.bat" prisma/*.db prisma/*.db-journal
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL="file:/tmp/dummy.db"
 RUN npm run build
 
 # ── Stage 3: Production image ──────────────────────────────────────
-FROM node:18-alpine AS runner
+FROM node:18-slim AS runner
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 nextjs
 
 # Copy built assets
 COPY --from=builder /app/public ./public
