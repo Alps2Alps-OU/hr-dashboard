@@ -1,9 +1,31 @@
-node_modules
-.next
+# ── Secrets & credentials — NEVER commit ──────────────────────────────────────
 .env
 .env.*
-coolify.env.*
+!.env.local.example
+*.pem
+*.key
+**/service-account*.json
+**/credentials*.json
+**/*secret*.json
+
+# ── Local database & employee data — contains PII, NEVER commit ───────────────
 prisma/*.db
 prisma/*.db-journal
-*.log
-.DS_Store
+*.sqlite
+*.sqlite3
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+/node_modules
+/.pnp
+.pnp.js
+
+# ── Next.js build output ──────────────────────────────────────────────────────
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# ── VDP / Coolify deployment secrets ──────────────────────────────────────────
+coolify.env.*
+
+# ── Misc ───────────────────────────────────────────

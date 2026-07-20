@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "lib": ["es2020"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "outDir": "dist-scripts",
+    "paths": { "@/*": ["./*"] }
+  },
+  "include": ["scripts/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules", "app", "components"]
+}
