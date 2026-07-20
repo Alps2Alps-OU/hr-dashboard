@@ -38,12 +38,13 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/prisma ./prisma
 
 RUN mkdir -p /data && chown nextjs:nodejs /data
 VOLUME /data
 
-RUN printf '#!/bin/sh\nset -e\nexport DATABASE_URL="file:/data/hr-buddy.db"\nnpx prisma migrate deploy --schema ./prisma/schema.prisma\nexec node server.js\n' > /app/entrypoint.sh && \
+RUN printf '#!/bin/sh\nset -e\nexport DATABASE_URLh="file:/data/hr-buddy.db"\nnode ./node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss --schema ./prisma/schema.prisma\nexec node server.js\n' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 USER nextjs
