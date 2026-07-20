@@ -2,10 +2,9 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
 COPY prisma ./prisma/
 ENV DATABASE_URL="file:/tmp/dummy.db"
-RUN npx prisma generate
+RUN npm ci
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
 FROM node:18-alpine AS builder
