@@ -1,11 +1,15 @@
 # ── Stage 1: Install dependencies ──────────────────────────────────
 FROM node:18-slim AS deps
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl dos2unix && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+RUN dos2unix package.json package-lock.json prisma/schema.prisma 2>/dev/null || true
 ENV DATABASE_URL="file:/tmp/dummy.db"
-RUN npm install
+RUN echo "=== Node: $(node -v) NPM: $(npm -v) ===" && \
+    echo "=== package.json exists: $(test -f package.json && echo YES || echo NO) ===" && \
+    echo "=== package-lock.json exists: $(test -f package-lock.json && echo YES || echo NO) ===" && \
+    npm install --loglevel verbose 2>&1
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
 FROM node:18-slim AS builder
@@ -28,21 +32,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs
 
-# Copy built assets
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-
-# Copy Prisma schema + migrations for runtime migrate
 COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
 
-# SQLite data lives in a persistent volume
 RUN mkdir -p /data && chown nextjs:nodejs /data
 VOLUME /data
 
-# Entrypoint script: run migrations then start
 RUN printf '#!/bin/sh\nset -e\nexport DATABASE_URL="file:/data/hr-buddy.db"\nnpx prisma migrate deploy --schema ./prisma/schema.prisma\nexec node server.js\n' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
