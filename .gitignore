@@ -1,0 +1,9 @@
+node_modules
+.next
+.env
+.env.*
+coolify.env.*
+prisma/*.db
+prisma/*.db-journal
+*.log
+.DS_Store
