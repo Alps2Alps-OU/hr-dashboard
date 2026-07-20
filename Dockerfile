@@ -1,15 +1,11 @@
 # ── Stage 1: Install dependencies ──────────────────────────────────
 FROM node:18-slim AS deps
-RUN apt-get update && apt-get install -y openssl dos2unix && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN dos2unix package.json package-lock.json prisma/schema.prisma 2>/dev/null || true
 ENV DATABASE_URL="file:/tmp/dummy.db"
-RUN echo "=== Node: $(node -v) NPM: $(npm -v) ===" && \
-    echo "=== package.json exists: $(test -f package.json && echo YES || echo NO) ===" && \
-    echo "=== package-lock.json exists: $(test -f package-lock.json && echo YES || echo NO) ===" && \
-    npm install --loglevel verbose 2>&1
+RUN npm ci --ignore-scripts && npx prisma generate
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
 FROM node:18-slim AS builder
