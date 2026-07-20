@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 ENV DATABASE_URL="file:/tmp/dummy.db"
-RUN sed -i 's|[[:space:]]*//.*||' prisma/schema.prisma && npm ci
+RUN tr -d '\0' < prisma/schema.prisma | sed 's|[[:space:]]*//.*||' > /tmp/schema.clean && mv /tmp/schema.clean prisma/schema.prisma && npm ci
 
 # ── Stage 2: Build the Next.js app ─────────────────────────────────
 FROM node:18-slim AS builder
