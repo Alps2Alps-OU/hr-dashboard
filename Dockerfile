@@ -19,6 +19,7 @@ RUN find . -path ./node_modules -prune -o -type f -name '*.js' -print -o -name '
 RUN printf '%s\n' "/** @type {import('next').NextConfig} */" "const nextConfig = {" "  output: 'standalone'," "  typescript: { ignoreBuildErrors: true }," "  eslint: { ignoreDuringBuilds: true }," "  experimental: {" "    serverComponentsExternalPackages: ['pdf-parse', '@prisma/client']," "  }," "};" "" "module.exports = nextConfig;" > next.config.js
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="file:/tmp/dummy.db"
+RUN npx prisma db push --skip-generate
 RUN npm run build
 
 # Stage 3: Production image
