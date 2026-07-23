@@ -37,6 +37,7 @@ interface RawAsanaTask {
   modified_at: string;
   assignee: { name: string } | null;
   memberships: Array<{ section: { name: string } | null }>;
+  num_subtasks?: number;
 }
 
 const EXCLUDED_SECTIONS = ['Templates'];
@@ -255,6 +256,61 @@ async function syncProjectTasks(
       },
     });
     upserted++;
+  }
+
+  // Asana's project-tasks endpoint returns only top-level tasks. Subtasks (e.g.
+  // items assigned to a specific person under a parent) must be fetched per parent.
+  upserted += await syncSubtasks(projectId, startDate);
+  return upserted;
+}
+
+/**
+ * Fetch and upsert subtasks for a project's tasks. Parents are enumerated with a
+ * cheap field set regardless of sync mode, so a subtask is discovered even when
+ * its parent task itself wasn't modified since the last sync.
+ */
+async function syncSubtasks(projectId: string, startDate: Date): Promise<number> {
+  const parents = await afetchAll(
+    `/projects/${projectId}/tasks`,
+    'opt_fields=gid,num_subtasks,memberships.section.name'
+  );
+  const subFields = 'gid,name,completed,due_on,completed_at,created_at,modified_at,assignee.name';
+  let upserted = 0;
+
+  for (const parent of parents) {
+    if (!parent.num_subtasks || parent.num_subtasks < 1) continue;
+    const parentSection = parent.memberships?.[0]?.section?.name ?? null;
+    // Skip subtasks of parents in excluded sections (e.g. Templates).
+    if (parentSection && EXCLUDED_SECTIONS.some((s) => parentSection.includes(s))) continue;
+
+    const subs = await afetchAll(`/tasks/${parent.gid}/subtasks`, `opt_fields=${subFields}`);
+    for (const sub of subs) {
+      if (!shouldIncludeTask(sub, startDate)) continue;
+      await prisma.asanaTask.upsert({
+        where: { gid: sub.gid },
+        create: {
+          gid: sub.gid, projectGid: projectId, name: sub.name,
+          completed: sub.completed,
+          completedAt: sub.completed_at ? new Date(sub.completed_at) : null,
+          createdAt: new Date(sub.created_at),
+          dueOn: sub.due_on ? new Date(sub.due_on) : null,
+          modifiedAt: new Date(sub.modified_at),
+          assignee: sub.assignee?.name ?? null,
+          section: parentSection,
+          quarter: deriveQuarter(sub.due_on),
+        },
+        update: {
+          name: sub.name, completed: sub.completed,
+          completedAt: sub.completed_at ? new Date(sub.completed_at) : null,
+          dueOn: sub.due_on ? new Date(sub.due_on) : null,
+          modifiedAt: new Date(sub.modified_at),
+          assignee: sub.assignee?.name ?? null,
+          section: parentSection,
+          quarter: deriveQuarter(sub.due_on),
+        },
+      });
+      upserted++;
+    }
   }
   return upserted;
 }
